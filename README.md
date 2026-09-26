@@ -56,13 +56,31 @@ Information Systems Student | Aspiring Full-Stack Developer
 ## Screenshots
 
 ### Home Screen
-![Home Screen](screenshots/home.png)
+![Home Screen](screenshots/home.jpg)
 
 ### App Selection
-![App Selection](screenshots/app-selection.png)
+![App Selection](screenshots/app-selection.jpg)
 
 ### Focus Session
-![Focus Session](screenshots/focus-session.png)
+![Focus Session](screenshots/focus-session.jpg)
+
+### Settings
+![Settings](screenshots/settings.jpg)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 ### Settings
 ![Settings](screenshots/settings.png)
