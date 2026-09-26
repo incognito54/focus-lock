@@ -53,3 +53,16 @@ Building Focus Lock gave me hands-on experience with:
 **Omer**
 
 Information Systems Student | Aspiring Full-Stack Developer
+## Screenshots
+
+### Home Screen
+![Home Screen](screenshots/home.png)
+
+### App Selection
+![App Selection](screenshots/app-selection.png)
+
+### Focus Session
+![Focus Session](screenshots/focus-session.png)
+
+### Settings
+![Settings](screenshots/settings.png)
