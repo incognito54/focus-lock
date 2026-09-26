@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="#F5F7FF">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="🔒"
+        android:textSize="52sp"
+        android:gravity="center" />
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="12dp"
+        android:text="FOCUS LOCKED"
+        android:textSize="30sp"
+        android:textStyle="bold"
+        android:textColor="#3F3CBB"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/blockMessage"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="16dp"
+        android:text="This app is blocked while your focus session is active."
+        android:textSize="17sp"
+        android:textColor="#555A72"
+        android:gravity="center" />
+
+    <TextView
+        android:id="@+id/countdownText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="30dp"
+        android:text="00:00"
+        android:textSize="42sp"
+        android:textStyle="bold"
+        android:textColor="#24245C"
+        android:gravity="center" />
+
+</LinearLayout>
