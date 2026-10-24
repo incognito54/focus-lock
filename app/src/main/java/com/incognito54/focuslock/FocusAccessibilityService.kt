@@ -12,190 +12,144 @@ class FocusAccessibilityService : AccessibilityService() {
     private val handler = Handler(Looper.getMainLooper())
 
     override fun onServiceConnected() {
-
         super.onServiceConnected()
+        Log.d("FocusAccessibility", "Accessibility Service connected")
+    }
+
+    override fun onAccessibilityEvent(event: AccessibilityEvent?) {
+        if (event?.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+            return
+        }
 
         Log.d(
             "FocusAccessibility",
-            "Accessibility Service connected"
+            "SCREEN: package=${event.packageName}, " +
+                    "class=${event.className}, " +
+                    "text=${event.text}"
         )
-    }
 
-    override fun onAccessibilityEvent(
-        event: AccessibilityEvent?
-    ) {
+        val currentApp = event.packageName?.toString() ?: return
 
-        if (
-            event?.eventType ==
-            AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
-        ) {
+        // Never block Focus Lock itself.
+        if (currentApp == packageName) return
 
-            val currentApp =
-                event.packageName?.toString()
+        val preferences = getSharedPreferences(
+            "focus_lock",
+            MODE_PRIVATE
+        )
 
-            if (
-                currentApp != null &&
-                currentApp != packageName
-            ) {
+        val endTime = preferences.getLong("end_time", 0L)
+        val focusActive = endTime > System.currentTimeMillis()
 
-                val preferences =
-                    getSharedPreferences(
-                        "focus_lock",
-                        MODE_PRIVATE
-                    )
+        if (!focusActive) {
+            Log.d(
+                "FocusAccessibility",
+                "No active Focus Lock. User opened: $currentApp"
+            )
+            return
+        }
 
-                val endTime =
-                    preferences.getLong(
-                        "end_time",
-                        0L
-                    )
+        // Detect protected Settings screens.
+        val settingsClass =
+            event.className?.toString() == "com.android.settings.SubSettings"
 
-                val currentTime =
-                    System.currentTimeMillis()
-
-                val focusActive =
-                    endTime > currentTime
-
-                /*
-                 * DEVICE ADMIN PROTECTION
-                 *
-                 * This is always checked while
-                 * a Focus Session is active.
-                 */
-                val isDeviceAdminSettings =
-                    currentApp == "com.android.settings" &&
-                            event.className?.toString() ==
-                            "com.android.settings.SubSettings" &&
-                            event.text.any {
-                                it.toString().contains(
-                                    "Device admin apps",
-                                    ignoreCase = true
-                                )
-                            }
-                val isAccessibilitySettings =
-                    currentApp == "com.android.settings" &&
-                            event.className?.toString() ==
-                            "com.android.settings.SubSettings" &&
-                            event.text.any {
-                                it.toString().contains(
-                                    "Accessibility",
-                                    ignoreCase = true
-                                )
-                            }
-                if (focusActive) {
-
-                    /*
-                     * DEVICE ADMIN
-                     */
-                    if (isDeviceAdminSettings) {
-
-                        Log.d(
-                            "FocusAccessibility",
-                            "Device Admin settings blocked during Focus Session"
+        val isDeviceAdminSettings =
+            currentApp == "com.android.settings" &&
+                    settingsClass &&
+                    event.text.any {
+                        it.toString().contains(
+                            "Device admin apps",
+                            ignoreCase = true
                         )
-
-                        val intent =
-                            Intent(
-                                this,
-                                BlockActivity::class.java
-                            )
-
-                        intent.putExtra(
-                            "block_reason",
-                            "DEVICE_ADMIN"
-                        )
-
-                        intent.addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                        )
-
-                        startActivity(intent)
-
-                        return
-                    }
-                    if (isAccessibilitySettings) {
-
-                        Log.d(
-                            "FocusAccessibility",
-                            "Accessibility settings blocked during Focus Session"
-                        )
-
-                        val intent =
-                            Intent(
-                                this,
-                                BlockActivity::class.java
-                            )
-
-                        intent.putExtra(
-                            "block_reason",
-                            "ACCESSIBILITY"
-                        )
-
-                        intent.addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                        )
-
-                        startActivity(intent)
-
-                        return
-                    }
-                    /*
-                     * SELECTED APP PROTECTION
-                     *
-                     * No Emergency Access.
-                     *
-                     * If the app is selected,
-                     * it stays blocked until
-                     * the Focus Session ends.
-                     */
-                    Log.d(
-                        "FocusAccessibility",
-                        "Focus Lock active. User opened: $currentApp"
-                    )
-
-                    val selectedApps =
-                        preferences
-                            .getStringSet(
-                                "selected_apps",
-                                emptySet()
-                            )
-                            ?: emptySet()
-
-                    if (
-                        selectedApps.contains(currentApp)
-                    ) {
-
-                        val intent =
-                            Intent(
-                                this,
-                                BlockActivity::class.java
-                            )
-
-                        intent.putExtra(
-                            "block_reason",
-                            "SELECTED_APP"
-                        )
-
-                        intent.addFlags(
-                            Intent.FLAG_ACTIVITY_NEW_TASK
-                        )
-
-                        startActivity(intent)
                     }
 
-                } else {
+        val isAccessibilitySettings =
+            currentApp == "com.android.settings" &&
+                    settingsClass &&
+                    event.text.any {
+                        it.toString().contains(
+                            "Accessibility",
+                            ignoreCase = true
+                        )
+                    }
 
-                    Log.d(
-                        "FocusAccessibility",
-                        "No active Focus Lock. User opened: $currentApp"
-                    )
-                }
+        val isFocusLockStorageSettings =
+            currentApp == "com.android.settings" &&
+                    settingsClass &&
+                    event.text.any {
+                        it.toString().contains(
+                            "Storage",
+                            ignoreCase = true
+                        )
+                    }
+
+        val blockReason = when {
+            isFocusLockStorageSettings -> "STORAGE"
+            isDeviceAdminSettings -> "DEVICE_ADMIN"
+            isAccessibilitySettings -> "ACCESSIBILITY"
+            else -> null
+        }
+
+        // Keep the existing Settings protections.
+        if (blockReason != null) {
+            Log.d(
+                "FocusAccessibility",
+                "$blockReason settings blocked during Focus Session"
+            )
+
+            val intent = Intent(this, BlockActivity::class.java).apply {
+                putExtra("block_reason", blockReason)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             }
+
+            startActivity(intent)
+            return
+        }
+
+        // Apps selected manually by the user.
+        val selectedApps = preferences.getStringSet(
+            "selected_apps",
+            emptySet()
+        )?.toSet() ?: emptySet()
+
+        // Apps installed during an active Strong Session.
+        val autoBlockedApps = preferences.getStringSet(
+            "auto_blocked_apps",
+            emptySet()
+        )?.toSet() ?: emptySet()
+
+        val strongSession = preferences.getBoolean(
+            "strong_session",
+            false
+        )
+
+        val manuallySelected = selectedApps.contains(currentApp)
+
+        val automaticallyBlocked =
+            strongSession && autoBlockedApps.contains(currentApp)
+
+        if (manuallySelected || automaticallyBlocked) {
+            val reason = if (automaticallyBlocked && !manuallySelected) {
+                "STRONG_SESSION_APP"
+            } else {
+                "SELECTED_APP"
+            }
+
+            Log.d(
+                "FocusAccessibility",
+                "Blocking app: $currentApp, reason=$reason"
+            )
+
+            val intent = Intent(this, BlockActivity::class.java).apply {
+                putExtra("block_reason", reason)
+                addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            }
+
+            startActivity(intent)
         }
     }
 
     override fun onInterrupt() {
-
         Log.d(
             "FocusAccessibility",
             "Accessibility Service interrupted"
@@ -203,9 +157,7 @@ class FocusAccessibilityService : AccessibilityService() {
     }
 
     override fun onDestroy() {
-
         handler.removeCallbacksAndMessages(null)
-
         super.onDestroy()
     }
 }

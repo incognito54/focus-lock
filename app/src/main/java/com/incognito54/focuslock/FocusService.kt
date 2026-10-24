@@ -6,7 +6,10 @@ import android.app.NotificationManager
 import android.app.Service
 import android.app.usage.UsageEvents
 import android.app.usage.UsageStatsManager
+import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
+import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -15,10 +18,12 @@ import android.util.Log
 class FocusService : Service() {
 
     private val handler = Handler(Looper.getMainLooper())
+    private var installReceiverRegistered = false
+
+    private val appInstallReceiver = AppInstallReceiver()
 
     private val checker = object : Runnable {
         override fun run() {
-
             val usageStatsManager =
                 getSystemService(USAGE_STATS_SERVICE) as UsageStatsManager
 
@@ -70,7 +75,6 @@ class FocusService : Service() {
         flags: Int,
         startId: Int
     ): Int {
-
         val notification = Notification.Builder(
             this,
             "focus_lock_channel"
@@ -82,18 +86,46 @@ class FocusService : Service() {
 
         startForeground(1, notification)
 
+        registerPackageAddedReceiver()
+
         handler.removeCallbacks(checker)
         handler.post(checker)
 
         return START_STICKY
     }
 
-    override fun onBind(intent: Intent?): IBinder? {
-        return null
+    private fun registerPackageAddedReceiver() {
+        if (installReceiverRegistered) return
+
+        val filter = IntentFilter(Intent.ACTION_PACKAGE_ADDED).apply {
+            addDataScheme("package")
+        }
+
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(
+                appInstallReceiver,
+                filter,
+                Context.RECEIVER_EXPORTED
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(appInstallReceiver, filter)
+        }
+
+        installReceiverRegistered = true
+        Log.d("FocusService", "Registered app-install receiver")
     }
+
+    override fun onBind(intent: Intent?): IBinder? = null
 
     override fun onDestroy() {
         handler.removeCallbacks(checker)
+
+        if (installReceiverRegistered) {
+            unregisterReceiver(appInstallReceiver)
+            installReceiverRegistered = false
+        }
+
         super.onDestroy()
     }
 }
